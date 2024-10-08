@@ -112,6 +112,11 @@ function brackets.add_brackets_via_semantic_token(filetype, item, callback)
   if not (clientProvider and clientProvider.legend) then return callback() end
 
   local numToTokenType = clientProvider.legend.tokenTypes
+  if
+    not (client.server_capabilities.semanticTokensProvider and client.server_capabilities.semanticTokensProvider.legend)
+  then
+    return callback()
+  end
   local params = {
     textDocument = vim.lsp.util.make_text_document_params(),
     range = {
