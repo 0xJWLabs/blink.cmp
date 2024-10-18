@@ -91,9 +91,11 @@ end
 --- @return string
 function fuzzy.get_query()
   local line = vim.api.nvim_get_current_line()
+  local cmp_config = config.trigger.completion
   local range = require('blink.cmp.utils').get_regex_around_cursor(
-    config.trigger.completion.keyword_regex,
-    config.fuzzy.keyword_range
+    cmp_config.keyword_range,
+    cmp_config.keyword_regex,
+    cmp_config.exclude_from_prefix_regex
   )
   return string.sub(line, range[1] + 1, range[2] + 1)
 end

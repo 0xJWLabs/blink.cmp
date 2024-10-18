@@ -42,6 +42,8 @@
   -- build = 'cargo build --release',
   -- On musl libc based systems you need to add this flag
   -- build = 'RUSTFLAGS="-C target-feature=-crt-static" cargo build --release',
+  -- If you use nix, you can build from source using latest nightly rust with:
+  -- build = 'nix run .#build-plugin',
 
   ---@module 'blink.cmp'
   ---@type blink.cmp.Config
@@ -79,7 +81,7 @@ For LazyVim/distro users, you can disable nvim-cmp via:
 MiniDeps.add({
   source = "saghen/blink.cmp",
   depends = {
-	"rafamadriz/friendly-snippets",
+  "rafamadriz/friendly-snippets",
   },
   checkout = "some.version", -- check releases for latest tag
 })
@@ -180,10 +182,16 @@ MiniDeps.add({
 
   trigger = {
     completion = {
+      -- 'prefix' will fuzzy match on the text before the cursor
+      -- 'full' will fuzzy match on the text before *and* after the cursor
+      -- example: 'foo_|_bar' will match 'foo_' for 'prefix' and 'foo__bar' for 'full'
+      keyword_range = 'prefix',
       -- regex used to get the text when fuzzy matching
       -- changing this may break some sources, so please report if you run into issues
       -- todo: shouldnt this also affect the accept command? should this also be per language?
       keyword_regex = '[%w_\\-]',
+      -- after matching with keyword_regex, any characters matching this regex at the prefix will be excluded
+      exclude_from_prefix_regex = '[\\-]',
       -- LSPs can indicate when to show the completion window via trigger characters
       -- however, some LSPs (*cough* tsserver *cough*) return characters that would essentially
       -- always show the window. We block these by default
@@ -192,6 +200,8 @@ MiniDeps.add({
       show_on_insert_on_trigger_character = true,
       -- list of additional trigger characters that won't trigger the completion window when the cursor comes after a trigger character when entering insert mode
       show_on_insert_blocked_trigger_characters = { "'", '"' },
+      -- when false, will not show the completion window when in a snippet
+      show_in_snippet = false,
     },
 
     signature_help = {
@@ -204,10 +214,6 @@ MiniDeps.add({
   },
 
   fuzzy = {
-    -- 'prefix' will fuzzy match on the text before the cursor
-    -- 'full' will fuzzy match on the text before *and* after the cursor
-    -- example: 'foo_|_bar' will match 'foo_' for 'prefix' and 'foo__bar' for 'full'
-    keyword_range = 'prefix',
     -- frencency tracks the most recently/frequently used items and boosts the score of the item
     use_frecency = true,
     -- proximity bonus boosts the score of items with a value in the buffer
@@ -239,7 +245,7 @@ MiniDeps.add({
       { 'blink.cmp.sources.snippets', name = 'Snippets', score_offset = -3 },
       { 'blink.cmp.sources.buffer', name = 'Buffer', fallback_for = { 'LSP' } },
     },
-    -- FOR REF: full example
+    -- WARN: **For reference only** to see what options are available. **See above for the default config**
     providers = {
       -- all of these properties work on every source
       {
@@ -424,8 +430,8 @@ The plugin use a 4 stage pipeline: trigger -> sources -> fuzzy -> render
 
 - Avoids the complexity of nvim-cmp's configuration by providing sensible defaults
 - Updates on every keystroke with 0.5-4ms of overhead, versus nvim-cmp's default debounce of 60ms with 2-50ms hitches from processing
-    - Setting nvim-cmp's debounce to 0ms leads to visible stuttering. If you'd like to stick with nvim-cmp, try [yioneko's fork](https://github.com/yioneko/nvim-cmp) or the more recent [magazine.nvim](https://github.com/iguanacucumber/magazine.nvim)
-- Boosts completion item score via frecency *and* proximity bonus. nvim-cmp only boosts score via proximity bonus and optionally by recency
+  - Setting nvim-cmp's debounce to 0ms leads to visible stuttering. If you'd like to stick with nvim-cmp, try [yioneko's fork](https://github.com/yioneko/nvim-cmp) or the more recent [magazine.nvim](https://github.com/iguanacucumber/magazine.nvim)
+- Boosts completion item score via frecency _and_ proximity bonus. nvim-cmp only boosts score via proximity bonus and optionally by recency
 - Typo-resistant fuzzy matching unlike nvim-cmp's fzf-style fuzzy matching
 - Core sources (buffer, snippets, path, lsp) are built-in versus nvim-cmp's exclusively external sources
 - Built-in auto bracket and signature help support
@@ -437,8 +443,6 @@ The plugin use a 4 stage pipeline: trigger -> sources -> fuzzy -> render
 - Ghost text
 - Matched character highlighting
 - Cmdline completions
-- Windows support (You may temporarily build from source as outlined in the [installation](#installation) section)
-
 
 ## Special Thanks
 

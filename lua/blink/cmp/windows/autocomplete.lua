@@ -158,46 +158,46 @@ function autocomplete.listen_on_position_update(callback)
   table.insert(autocomplete.event_targets.on_position_update, callback)
 end
 
----------- Selection ----------
+---------- Selection/Accept ----------
+
+function autocomplete.accept()
+  local selected_item = autocomplete.get_selected_item()
+  if selected_item == nil then return end
+
+  -- undo the preview if it exists
+  if autocomplete.preview_text_edit ~= nil and autocomplete.preview_context_id == autocomplete.context.id then
+    text_edits_lib.undo_text_edit(autocomplete.preview_text_edit)
+  end
+
+  -- apply
+  require('blink.cmp.accept')(selected_item)
+  return true
+end
 
 --- @param line number
-local function select(line)
-  local prev_selected_item = autocomplete.get_selected_item()
-
+--- @param skip_auto_insert? boolean
+local function select(line, skip_auto_insert)
   autocomplete.set_has_selected(true)
   vim.api.nvim_win_set_cursor(autocomplete.win:get_win(), { line, 0 })
 
   local selected_item = autocomplete.get_selected_item()
 
   -- when auto_insert is enabled, we immediately apply the text edit
-  -- todo: move this to the accept module
-  if config.windows.autocomplete.selection == 'auto_insert' and selected_item ~= nil then
+  if config.windows.autocomplete.selection == 'auto_insert' and selected_item ~= nil and not skip_auto_insert then
     require('blink.cmp.trigger.completion').suppress_events_for_callback(function()
-      local text_edit = text_edits_lib.get_from_item(selected_item)
-
-      if selected_item.insertTextFormat == vim.lsp.protocol.InsertTextFormat.Snippet then
-        text_edit.newText = selected_item.label
+      if autocomplete.preview_text_edit ~= nil and autocomplete.preview_context_id == autocomplete.context.id then
+        text_edits_lib.undo_text_edit(autocomplete.preview_text_edit)
       end
-
-      if
-        prev_selected_item ~= nil and prev_selected_item.insertTextFormat == vim.lsp.protocol.InsertTextFormat.Snippet
-      then
-        local current_col = vim.api.nvim_win_get_cursor(0)[2]
-        text_edit.range.start.character = current_col - #prev_selected_item.label
-      end
-
-      text_edits_lib.apply_text_edits(selected_item.client_id, { text_edit })
-      vim.api.nvim_win_set_cursor(0, {
-        text_edit.range.start.line + 1,
-        text_edit.range.start.character + #text_edit.newText,
-      })
+      autocomplete.preview_text_edit = require('blink.cmp.accept.preview')(selected_item)
+      autocomplete.preview_context_id = autocomplete.context.id
     end)
   end
 
   autocomplete.event_targets.on_select(selected_item, autocomplete.context)
 end
 
-function autocomplete.select_next()
+--- @params opts? { skip_auto_insert?: boolean }
+function autocomplete.select_next(opts)
   if not autocomplete.win:is_open() then return end
 
   local cycle_from_bottom = config.windows.autocomplete.cycle.from_bottom
@@ -215,10 +215,11 @@ function autocomplete.select_next()
     line = line + 1
   end
 
-  select(line)
+  select(line, opts and opts.skip_auto_insert)
 end
 
-function autocomplete.select_prev()
+--- @params opts? { skip_auto_insert?: boolean }
+function autocomplete.select_prev(opts)
   if not autocomplete.win:is_open() then return end
 
   local cycle_from_top = config.windows.autocomplete.cycle.from_top
@@ -232,7 +233,7 @@ function autocomplete.select_prev()
     line = line - 1
   end
 
-  select(line)
+  select(line, opts and opts.skip_auto_insert)
 end
 
 function autocomplete.listen_on_select(callback) autocomplete.event_targets.on_select = callback end
