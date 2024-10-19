@@ -10,7 +10,7 @@
 ## Features
 
 - Works out of the box with no additional configuration
-- Updates on every keystroke (0.5-4ms non-blocking, single core)
+- Updates on every keystroke (0.5-4ms async, single core)
 - Typo resistant fuzzy with frecency and proximity bonus
 - Extensive LSP support ([tracker](./LSP_TRACKER.md))
 - Native `vim.snippet` support (including `friendly-snippets`)
@@ -40,8 +40,6 @@
   version = 'v0.*',
   -- OR build from source, requires nightly: https://rust-lang.github.io/rustup/concepts/channels.html#working-with-nightly-rust
   -- build = 'cargo build --release',
-  -- On musl libc based systems you need to add this flag
-  -- build = 'RUSTFLAGS="-C target-feature=-crt-static" cargo build --release',
   -- If you use nix, you can build from source using latest nightly rust with:
   -- build = 'nix run .#build-plugin',
 
@@ -405,6 +403,7 @@ MiniDeps.add({
 <summary><strong>Community Sources</strong></summary>
 
 - [ctags](https://github.com/netmute/blink-cmp-ctags)
+- [ripgrep](https://github.com/niuiic/blink-cmp-rg.nvim)
 
 </details>
 
@@ -453,3 +452,5 @@ The plugin use a 4 stage pipeline: trigger -> sources -> fuzzy -> render
 [@redxtech](https://github.com/redxtech) Help with design and testing
 
 [@aaditya-sahay](https://github.com/aaditya-sahay) Help with rust, design and testing
+
+[@scottmckendry](https://github.com/scottmckendry) Actively contributing to the project
