@@ -28,13 +28,21 @@ function text_edits.apply_text_edits(client_id, edits)
 end
 
 --- @param text_edit lsp.TextEdit
-function text_edits.undo_text_edit(text_edit)
+function text_edits.get_undo_text_edit_range(text_edit)
   text_edit = vim.deepcopy(text_edit)
   local lines = vim.split(text_edit.newText, '\n')
-  local range = text_edit.range
+  local last_line_len = lines[#lines] and #lines[#lines] or 0
 
+  local range = text_edit.range
   range['end'].line = range.start.line + #lines - 1
-  range['end'].character = lines[#lines] and #lines[#lines] or 0
+  range['end'].character = #lines > 1 and last_line_len or range.start.character + last_line_len
+
+  return range
+end
+
+function text_edits.undo_text_edit(text_edit)
+  text_edit = vim.deepcopy(text_edit)
+  text_edit.range = text_edits.get_undo_text_edit_range(text_edit)
   text_edit.newText = ''
 
   vim.lsp.util.apply_text_edits({ text_edit }, vim.api.nvim_get_current_buf(), 'utf-16')
