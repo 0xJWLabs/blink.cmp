@@ -30,6 +30,7 @@ cmp.setup = function(opts)
     cmp.windows = {
       autocomplete = require('blink.cmp.windows.autocomplete').setup(),
       documentation = require('blink.cmp.windows.documentation').setup(),
+      ghost_text = require('blink.cmp.windows.ghost-text').setup(),
     }
 
     cmp.trigger.listen_on_show(function(context) cmp.sources.request_completions(context) end)
@@ -98,6 +99,8 @@ cmp.add_default_highlights = function()
   for _, kind in ipairs(require('blink.cmp.types').CompletionItemKind) do
     set_hl('BlinkCmpKind' .. kind, { link = use_nvim_cmp and 'CmpItemKind' .. kind or 'BlinkCmpKind' })
   end
+
+  set_hl('BlinkCmpGhostText', { link = use_nvim_cmp and 'CmpGhostText' or 'Comment' })
 
   set_hl('BlinkCmpMenu', { link = 'Pmenu' })
   set_hl('BlinkCmpMenuBorder', { link = 'Pmenu' })
@@ -214,6 +217,12 @@ cmp.snippet_backward = function()
   if not vim.snippet.active({ direction = -1 }) then return end
   vim.schedule(function() vim.snippet.jump(-1) end)
   return true
+end
+
+--- @param override? lsp.ClientCapabilities
+--- @param include_nvim_defaults? boolean
+cmp.get_lsp_capabilities = function(override, include_nvim_defaults)
+  return require('blink.cmp.sources.lib').get_lsp_capabilities(override, include_nvim_defaults)
 end
 
 return cmp
