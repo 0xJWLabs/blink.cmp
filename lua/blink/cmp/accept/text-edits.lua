@@ -9,6 +9,13 @@ function text_edits.get_from_item(item)
   -- from when the items were fetched versus the current.
   -- hack: is there a better way?
   if item.textEdit ~= nil then
+    -- FIXME: temporarily convert insertReplaceEdit to regular textEdit
+    if item.textEdit.insert ~= nil then
+      item.textEdit.range = item.textEdit.insert
+    elseif item.textEdit.replace ~= nil then
+      item.textEdit.range = item.textEdit.replace
+    end
+
     local text_edit = vim.deepcopy(item.textEdit)
     local offset = vim.api.nvim_win_get_cursor(0)[2] - item.cursor_column
     text_edit.range['end'].character = text_edit.range['end'].character + offset
@@ -80,8 +87,8 @@ function text_edits.guess_text_edit(item)
   -- convert to 0-index
   return {
     range = {
-      start = { line = current_line - 1, character = range[1] },
-      ['end'] = { line = current_line - 1, character = range[2] },
+      start = { line = current_line - 1, character = range.start_col - 1 },
+      ['end'] = { line = current_line - 1, character = range.start_col - 1 + range.length },
     },
     newText = word,
   }

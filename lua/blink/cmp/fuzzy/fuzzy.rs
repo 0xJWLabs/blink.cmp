@@ -1,62 +1,15 @@
 // TODO: refactor this heresy
 
 use crate::frecency::FrecencyTracker;
+use crate::lsp_item::LspItem;
 use mlua::prelude::*;
 use mlua::FromLua;
 use mlua::Lua;
-use serde::{Deserialize, Serialize};
+use std::cell::LazyCell;
 use std::cmp::Reverse;
 use std::collections::HashSet;
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct LspItem {
-    pub label: String,
-    #[serde(rename = "sortText")]
-    pub sort_text: Option<String>,
-    #[serde(rename = "filterText")]
-    pub filter_text: Option<String>,
-    pub kind: u32,
-    pub score_offset: Option<i32>,
-    pub source: String,
-}
-
-impl FromLua<'_> for LspItem {
-    fn from_lua(value: LuaValue<'_>, _lua: &'_ Lua) -> LuaResult<Self> {
-        if let Some(tab) = value.as_table() {
-            let label: String = tab.get("label").unwrap_or_default();
-            let sort_text: Option<String> = tab.get("sortText").ok();
-            let filter_text: Option<String> = tab.get("filterText").ok();
-            let kind: u32 = tab.get("kind").unwrap_or_default();
-            let score_offset: Option<i32> = tab.get("score_offset").ok();
-            let source: String = tab.get("source").unwrap_or_default();
-
-            Ok(LspItem {
-                label,
-                sort_text,
-                filter_text,
-                kind,
-                score_offset,
-                source,
-            })
-        } else {
-            Err(mlua::Error::FromLuaConversionError {
-                from: "LuaValue",
-                to: "LspItem",
-                message: None,
-            })
-        }
-    }
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct MatchedLspItem {
-    label: String,
-    kind: u32,
-    index: u32,
-    score: i32,
-}
-
-#[derive(Clone, Serialize, Deserialize, Hash)]
+#[derive(Clone, Hash)]
 pub struct FuzzyOptions {
     use_typo_resistance: bool,
     use_frecency: bool,
@@ -67,8 +20,8 @@ pub struct FuzzyOptions {
     sorts: Vec<String>,
 }
 
-impl FromLua<'_> for FuzzyOptions {
-    fn from_lua(value: LuaValue<'_>, _lua: &'_ Lua) -> LuaResult<Self> {
+impl FromLua for FuzzyOptions {
+    fn from_lua(value: LuaValue, _lua: &'_ Lua) -> LuaResult<Self> {
         if let Some(tab) = value.as_table() {
             let use_typo_resistance: bool = tab.get("use_typo_resistance").unwrap_or_default();
             let use_frecency: bool = tab.get("use_frecency").unwrap_or_default();
@@ -90,7 +43,7 @@ impl FromLua<'_> for FuzzyOptions {
         } else {
             Err(mlua::Error::FromLuaConversionError {
                 from: "LuaValue",
-                to: "FuzzyOptions",
+                to: "FuzzyOptions".to_string(),
                 message: None,
             })
         }
@@ -104,25 +57,23 @@ pub fn fuzzy(
     opts: FuzzyOptions,
 ) -> Vec<usize> {
     let nearby_words: HashSet<String> = HashSet::from_iter(opts.nearby_words.unwrap_or_default());
+    let haystack_labels = haystack.iter().map(|s| s.label.clone()).collect::<Vec<_>>();
 
     // Fuzzy match with fzrs
-    let haystack_labels = haystack
-        .iter()
-        .map(|s| {
-            if let Some(filter_text) = &s.filter_text {
-                filter_text.as_str()
-            } else {
-                s.label.as_str()
-            }
-        })
-        .collect::<Vec<_>>();
     let options = frizbee::Options {
         prefilter: !opts.use_typo_resistance,
         min_score: opts.min_score,
         stable_sort: false,
         ..Default::default()
     };
-    let mut matches = frizbee::match_list(&needle, &haystack_labels, options);
+    let mut matches = frizbee::match_list(
+        &needle,
+        &haystack_labels
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>(),
+        options,
+    );
 
     // Sort by scores
     let match_scores = matches
@@ -135,13 +86,13 @@ pub fn fuzzy(
             };
             let nearby_words_score = if opts.use_proximity {
                 nearby_words
-                    .get(&haystack[mtch.index_in_haystack].label)
+                    .get(&haystack_labels[mtch.index_in_haystack])
                     .map(|_| 2)
                     .unwrap_or(0)
             } else {
                 0
             };
-            let score_offset = haystack[mtch.index_in_haystack].score_offset.unwrap_or(0);
+            let score_offset = haystack[mtch.index_in_haystack].score_offset;
 
             (mtch.score as i32) + frecency_score + nearby_words_score + score_offset
         })

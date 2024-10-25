@@ -1,10 +1,6 @@
 local config = require('blink.cmp.config')
 
 local fuzzy = {
-  ---@type blink.cmp.Context?
-  last_context = nil,
-  ---@type blink.cmp.CompletionItem[]?
-  last_items = nil,
   rust = require('blink.cmp.fuzzy.rust'),
 }
 
@@ -35,11 +31,10 @@ function fuzzy.filter_items(needle, haystack)
   local cursor_row = vim.api.nvim_win_get_cursor(0)[1]
   local start_row = math.max(0, cursor_row - 30)
   local end_row = math.min(cursor_row + 30, vim.api.nvim_buf_line_count(0))
-  local nearby_words =
-    fuzzy.rust.get_words(table.concat(vim.api.nvim_buf_get_lines(0, start_row, end_row, false), '\n'))
+  local nearby_text = table.concat(vim.api.nvim_buf_get_lines(0, start_row, end_row, false), '\n')
+  local nearby_words = #nearby_text < 10000 and fuzzy.rust.get_words(nearby_text) or {}
 
   -- perform fuzzy search
-  local filtered_items = {}
   local matched_indices = fuzzy.rust.fuzzy(needle, haystack, {
     -- each matching char is worth 4 points and it receives a bonus for capitalization, delimiter and prefix
     -- so this should generally be good
@@ -53,25 +48,11 @@ function fuzzy.filter_items(needle, haystack)
     nearby_words = nearby_words,
   })
 
+  local filtered_items = {}
   for _, idx in ipairs(matched_indices) do
     table.insert(filtered_items, haystack[idx + 1])
   end
-
   return filtered_items
-end
-
----@param needle string
----@param context blink.cmp.Context
----@param items blink.cmp.CompletionItem[]?
-function fuzzy.filter_items_with_cache(needle, context, items)
-  if items == nil then
-    if fuzzy.last_context == nil or fuzzy.last_context.id ~= context.id then return {} end
-    items = fuzzy.last_items
-  end
-  fuzzy.last_context = context
-  fuzzy.last_items = items
-
-  return fuzzy.filter_items(needle, items)
 end
 
 --- Gets the text under the cursor to be used for fuzzy matching
@@ -84,12 +65,7 @@ function fuzzy.get_query()
     cmp_config.keyword_regex,
     cmp_config.exclude_from_prefix_regex
   )
-  -- Since sub(1, 1) returns a single char string, we need to check if that single char matches
-  -- and otherwise return an empty string
-  if range[1] == range[2] and line:sub(range[1] + 1, range[1] + 1):match(cmp_config.keyword_regex) == nil then
-    return ''
-  end
-  return string.sub(line, range[1] + 1, range[2] + 1)
+  return string.sub(line, range.start_col, range.start_col + range.length - 1)
 end
 
 return fuzzy

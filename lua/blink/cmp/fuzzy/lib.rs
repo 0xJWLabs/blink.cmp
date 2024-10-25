@@ -1,5 +1,6 @@
 use crate::frecency::FrecencyTracker;
-use crate::fuzzy::{FuzzyOptions, LspItem};
+use crate::fuzzy::FuzzyOptions;
+use crate::lsp_item::LspItem;
 use lazy_static::lazy_static;
 use mlua::prelude::*;
 use regex::Regex;
@@ -8,6 +9,7 @@ use std::sync::RwLock;
 
 mod frecency;
 mod fuzzy;
+mod lsp_item;
 
 lazy_static! {
     static ref REGEX: Regex = Regex::new(r"[A-Za-z][A-Za-z0-9_\\-]{2,32}").unwrap();
@@ -76,7 +78,9 @@ pub fn get_words(_: &Lua, text: String) -> LuaResult<Vec<String>> {
         .collect())
 }
 
-#[mlua::lua_module]
+// NOTE: skip_memory_check greatly improves performance
+// https://github.com/mlua-rs/mlua/issues/318
+#[mlua::lua_module(skip_memory_check)]
 fn blink_cmp_fuzzy(lua: &Lua) -> LuaResult<LuaTable> {
     let exports = lua.create_table()?;
     exports.set("fuzzy", lua.create_function(fuzzy)?)?;

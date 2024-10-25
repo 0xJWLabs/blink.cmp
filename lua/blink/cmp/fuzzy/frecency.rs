@@ -1,4 +1,4 @@
-use crate::fuzzy::LspItem;
+use crate::lsp_item::LspItem;
 use heed::types::*;
 use heed::{Database, Env, EnvOpenOptions};
 use mlua::Result as LuaResult;
@@ -10,7 +10,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 struct CompletionItemKey {
     label: String,
     kind: u32,
-    source: String,
+    source_id: String,
 }
 
 impl From<&LspItem> for CompletionItemKey {
@@ -18,7 +18,7 @@ impl From<&LspItem> for CompletionItemKey {
         Self {
             label: item.label.clone(),
             kind: item.kind,
-            source: item.source.clone(),
+            source_id: item.source_id.clone(),
         }
     }
 }

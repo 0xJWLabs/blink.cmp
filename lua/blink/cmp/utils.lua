@@ -79,13 +79,21 @@ function utils.combine_markdown_lines(lines)
   return combined_lines
 end
 
+--- Highlights the given range with treesitter with the given filetype
+--- @param bufnr number
+--- @param filetype string
+--- @param start_line number
+--- @param end_line number
+--- TODO: fallback to regex highlighting if treesitter fails
 function utils.highlight_with_treesitter(bufnr, filetype, start_line, end_line)
   local Range = require('vim.treesitter._range')
 
   local root_lang = vim.treesitter.language.get_lang(filetype)
   if root_lang == nil then return end
 
-  local trees = vim.treesitter.get_parser(bufnr, root_lang)
+  local success, trees = pcall(vim.treesitter.get_parser, bufnr, root_lang)
+  if not success then return end
+
   trees:parse({ start_line, end_line })
   if not trees then return end
 
@@ -141,40 +149,43 @@ end
 --- @param range 'prefix' | 'full'
 --- @param regex string
 --- @param exclude_from_prefix_regex string
---- @return number[]
+--- @return { start_col: number, length: number }
+--- TODO: switch to return start_col, length to simplify downstream logic
 function utils.get_regex_around_cursor(range, regex, exclude_from_prefix_regex)
-  local current_col = vim.api.nvim_win_get_cursor(0)[2]
+  local current_col = vim.api.nvim_win_get_cursor(0)[2] + 1
   local line = vim.api.nvim_get_current_line()
 
   -- Search backward for the start of the word
   local start_col = current_col
+  local length = 0
   while start_col > 0 do
-    local char = line:sub(start_col, start_col)
+    local char = line:sub(start_col - 1, start_col - 1)
     if char:match(regex) == nil then break end
     start_col = start_col - 1
+    length = length + 1
   end
-
-  local end_col = current_col
 
   -- Search forward for the end of the word if configured
   if range == 'full' then
-    while end_col < #line do
-      local char = line:sub(end_col + 1, end_col + 1)
+    while start_col + length < #line do
+      local col = start_col + length
+      local char = line:sub(col, col)
       if char:match(regex) == nil then break end
-      end_col = end_col + 1
+      length = length + 1
     end
   end
 
   -- exclude characters matching exclude_prefix_regex from the beginning of the bounds
   if exclude_from_prefix_regex ~= nil then
-    while start_col <= end_col do
-      local char = line:sub(start_col + 1, start_col + 1)
+    while length > 0 do
+      local char = line:sub(start_col, start_col)
       if char:match(exclude_from_prefix_regex) == nil then break end
       start_col = start_col + 1
+      length = length - 1
     end
   end
 
-  return { start_col, end_col }
+  return { start_col = start_col, length = length }
 end
 
 return utils
