@@ -5,15 +5,17 @@
 --- @field config blink.cmp.SourceProviderConfigWrapper
 --- @field module blink.cmp.Source
 --- @field last_response blink.cmp.CompletionResponse | nil
+--- @field resolve_tasks table<blink.cmp.CompletionItem, blink.cmp.Task>
 ---
 --- @field new fun(id: string, config: blink.cmp.SourceProviderConfig): blink.cmp.SourceProvider
+--- @field enabled fun(self: blink.cmp.SourceProvider, context: blink.cmp.Context): boolean
 --- @field get_trigger_characters fun(self: blink.cmp.SourceProvider): string[]
 --- @field get_completions fun(self: blink.cmp.SourceProvider, context: blink.cmp.Context, enabled_sources: string[]): blink.cmp.Task
 --- @field should_show_items fun(self: blink.cmp.SourceProvider, context: blink.cmp.Context, enabled_sources: string[], response: blink.cmp.CompletionResponse): boolean
 --- @field resolve fun(self: blink.cmp.SourceProvider, item: blink.cmp.CompletionItem): blink.cmp.Task
 --- @field get_signature_help_trigger_characters fun(self: blink.cmp.SourceProvider): string[]
 --- @field get_signature_help fun(self: blink.cmp.SourceProvider, context: blink.cmp.SignatureHelpContext): blink.cmp.Task
---- @field reload (fun(self: blink.cmp.Source): nil) | nil
+--- @field reload (fun(self: blink.cmp.SourceProvider): nil) | nil
 
 --- @type blink.cmp.SourceProvider
 --- @diagnostic disable-next-line: missing-fields
@@ -35,8 +37,18 @@ function source.new(id, config)
   )
   self.config = require('blink.cmp.sources.lib.provider.config').new(config)
   self.last_response = nil
+  self.resolve_tasks = {}
 
   return self
+end
+
+function source:enabled(context)
+  -- user defined
+  if not self.config.enabled(context) then return false end
+
+  -- source defined
+  if self.module.enabled == nil then return true end
+  return self.module:enabled(context)
 end
 
 --- Completion ---
@@ -56,14 +68,18 @@ function source:get_completions(context, enabled_sources)
   end
 
   return async.task
-    .new(function(resolve) return self.module:get_completions(context, resolve) end)
+    .new(function(resolve)
+      if self.module.get_completions == nil then return resolve() end
+      return self.module:get_completions(context, resolve)
+    end)
     :map(function(response)
       if response == nil then response = { is_incomplete_forward = true, is_incomplete_backward = true, items = {} } end
       response.context = context
 
-      -- add non-lsp meta
+      -- add non-lsp metadata
+      local source_score_offset = self.config.score_offset(context, enabled_sources) or 0
       for _, item in ipairs(response.items) do
-        item.score_offset = (item.score_offset or 0) + (self.config.score_offset(context, enabled_sources) or 0)
+        item.score_offset = (item.score_offset or 0) + source_score_offset
         item.cursor_column = context.cursor[2]
         item.source_id = self.id
         item.source_name = self.name
@@ -99,12 +115,23 @@ end
 --- @param item blink.cmp.CompletionItem
 --- @return blink.cmp.Task
 function source:resolve(item)
-  return async.task.new(function(resolve)
-    if self.module.resolve == nil then return resolve(nil) end
-    return self.module:resolve(item, function(resolved_item)
-      vim.schedule(function() resolve(resolved_item) end)
+  local tasks = self.resolve_tasks
+  if tasks[item] == nil or tasks[item].status == async.STATUS.CANCELLED then
+    tasks[item] = async.task.new(function(resolve)
+      if self.module.resolve == nil then return resolve(item) end
+      return self.module:resolve(item, function(resolved_item)
+        -- use the item's existing documentation and detail if the LSP didn't return it
+        -- TODO: do we need this? this would be for java but never checked if it's needed
+        if resolved_item ~= nil and resolved_item.documentation == nil then
+          resolved_item.documentation = item.documentation
+        end
+        if resolved_item ~= nil and resolved_item.detail == nil then resolved_item.detail = item.detail end
+
+        vim.schedule(function() resolve(resolved_item or item) end)
+      end)
     end)
-  end)
+  end
+  return tasks[item]
 end
 
 --- Signature help ---

@@ -44,8 +44,8 @@ function lsp:get_clients_with_capability(capability, filter)
 end
 
 function lsp:get_completions(context, callback)
-  -- todo: offset encoding is global but should be per-client
-  -- todo: should make separate LSP requests to return results earlier, in the case of slow LSPs
+  -- TODO: offset encoding is global but should be per-client
+  -- TODO: should make separate LSP requests to return results earlier, in the case of slow LSPs
 
   -- no providers with completion support
   if not self:has_capability('completionProvider') then
@@ -71,8 +71,8 @@ function lsp:get_completions(context, callback)
   -- this also avoids having to make multiple calls to the LSP server in case characters are deleted
   -- for these special cases
   -- i.e. hello.wor| would be sent as hello.|wor
-  -- todo: should we still make two calls to the LSP server and merge?
-  -- todo: breaks the textEdit resolver since it assumes the request was made from the cursor
+  -- TODO: should we still make two calls to the LSP server and merge?
+  -- TODO: breaks the textEdit resolver since it assumes the request was made from the cursor
   -- local trigger_characters = self:get_trigger_characters()
   -- local trigger_character_block_list = { ' ', '\n', '\t' }
   -- local bounds = context.bounds
@@ -163,10 +163,11 @@ function lsp:resolve(item, callback)
   -- strip blink specific fields to avoid decoding errors on some LSPs
   item = require('blink.cmp.sources.lib.utils').blink_item_to_lsp_item(item)
 
-  local _, request_id = client.request('completionItem/resolve', item, function(error, resolved_item)
+  local success, request_id = client.request('completionItem/resolve', item, function(error, resolved_item)
     if error or resolved_item == nil then callback(item) end
     callback(resolved_item)
   end)
+  if not success then callback(item) end
   if request_id ~= nil then return function() client.cancel_request(request_id) end end
 end
 
@@ -204,6 +205,7 @@ function lsp:get_signature_help(context, callback)
   }
 
   -- otherwise, we call all clients
+  -- TODO: some LSPs never response (typescript-tools.nvim)
   return vim.lsp.buf_request_all(0, 'textDocument/signatureHelp', params, function(result)
     local signature_helps = {}
     for client_id, res in pairs(result) do
