@@ -14,7 +14,7 @@
 - Typo resistant fuzzy with frecency and proximity bonus
 - Extensive LSP support ([tracker](./LSP_TRACKER.md))
 - Native `vim.snippet` support (including `friendly-snippets`)
-- External sources support (currently incompatible with `nvim-cmp` sources)
+- External sources support (including [compatibility with `nvim-cmp` sources](https://github.com/Saghen/blink.compat))
 - Auto-bracket support based on semantic tokens (experimental, opt-in)
 - Signature help (experimental, opt-in)
 - [Comparison with nvim-cmp](#compared-to-nvim-cmp)
@@ -68,6 +68,25 @@
     -- experimental signature help support
     -- trigger = { signature_help = { enabled = true } }
   }
+},
+
+-- LSP servers and clients communicate what features they support through "capabilities".
+--  By default, Neovim support a subset of the LSP specification.
+--  With blink.cmp, Neovim has *more* capabilities which must be communicated to the LSP servers.
+--  Explanation from TJ: https://youtu.be/m8C0Cq9Uv9o?t=1275
+--
+-- This can vary by config, but in-general for nvim-lspconfig:
+
+{
+  'neovim/nvim-lspconfig',
+  dependencies = { 'saghen/blink.cmp' },
+  config = function(_, opts)
+    local lspconfig = require('lspconfig')
+    for server, config in pairs(opts.servers) do
+      config.capabilities = require('blink.cmp').get_lsp_capabilities(config.capabilities)
+      lspconfig[server].setup(config)
+    end
+  end
 }
 ```
 
@@ -143,7 +162,7 @@ MiniDeps.add({
 {
   -- the keymap may be a preset ('default' | 'super-tab') OR a table of keys => command[]
   -- when defining your own, no keybinds will be assigned automatically.
-  -- additionally, you may pass a function in the command array where returning true 
+  -- you may pass a function in the command array where returning true 
   -- will prevent the next command from running
   --
   -- "default" keymap
@@ -161,7 +180,7 @@ MiniDeps.add({
   --   ['<S-Tab>'] = { 'snippet_backward', 'fallback' },
   --
   -- "super-tab" keymap
-  --   you may want to set `trigger.show_in_snippet = false` when using "super-tab"
+  --   you may want to set `trigger.completion.show_in_snippet = false` when using "super-tab"
   --   or use `window.autocomplete.selection = "manual" | "auto_insert"`
   --
   --   ['<C-space>'] = { 'show', 'show_documentation', 'hide_documentation' },
@@ -227,14 +246,16 @@ MiniDeps.add({
       -- after matching with keyword_regex, any characters matching this regex at the prefix will be excluded
       exclude_from_prefix_regex = '[\\-]',
       -- LSPs can indicate when to show the completion window via trigger characters
-      -- however, some LSPs (*cough* tsserver *cough*) return characters that would essentially
+      -- however, some LSPs (i.e. tsserver) return characters that would essentially
       -- always show the window. We block these by default
       blocked_trigger_characters = { ' ', '\n', '\t' },
+      -- when true, will show the completion window when the cursor comes after a trigger character after accepting an item
+      show_on_accept_on_trigger_character = true,
       -- when true, will show the completion window when the cursor comes after a trigger character when entering insert mode
       show_on_insert_on_trigger_character = true,
-      -- list of additional trigger characters that won't trigger the completion window when the cursor comes after a trigger character when entering insert mode
-      show_on_insert_blocked_trigger_characters = { "'", '"' },
-      -- when false, will not show the completion window when in a snippet
+      -- list of additional trigger characters that won't trigger the completion window when the cursor comes after a trigger character when entering insert mode/accepting an item
+      show_on_x_blocked_trigger_characters = { "'", '"', '(' },
+      -- when false, will not show the completion window automatically when in a snippet
       show_in_snippet = true,
     },
 
@@ -250,30 +271,37 @@ MiniDeps.add({
   fuzzy = {
     -- frencency tracks the most recently/frequently used items and boosts the score of the item
     use_frecency = true,
-    -- proximity bonus boosts the score of items with a value in the buffer
+    -- proximity bonus boosts the score of items matching nearby words
     use_proximity = true,
     max_items = 200,
     -- controls which sorts to use and in which order, these three are currently the only allowed options
     sorts = { 'label', 'kind', 'score' },
 
-    prebuiltBinaries = {
+    prebuilt_binaries = {
       -- Whether or not to automatically download a prebuilt binary from github. If this is set to `false`
       -- you will need to manually build the fuzzy binary dependencies by running `cargo build --release`
       download = true,
-      -- When downloading a prebuilt binary force the downloader to resolve this version. If this is uset
+      -- When downloading a prebuilt binary, force the downloader to resolve this version. If this is unset
       -- then the downloader will attempt to infer the version from the checked out git tag (if any).
       --
       -- Beware that if the FFI ABI changes while tracking main then this may result in blink breaking.
-      forceVersion = nil,
+      force_version = nil,
+      -- When downloading a prebuilt binary, force the downloader to use this system triple. If this is unset
+      -- then the downloader will attempt to infer the system triple from `jit.os` and `jit.arch`.
+      -- Check the latest release for all available system triples
+      --
+      -- Beware that if the FFI ABI changes while tracking main then this may result in blink breaking.
+      force_system_triple = nil,
     },
   },
 
   sources = {
     -- list of enabled providers
     completion = { 
-      enabled_providers = {'lsp', 'path', 'snippets', 'buffer' },
+      enabled_providers = { 'lsp', 'path', 'snippets', 'buffer' },
     }
 
+    -- Please see https://github.com/Saghen/blink.compat for using `nvim-cmp` sources
     providers = {
       lsp = {
         name = 'LSP',
@@ -493,6 +521,8 @@ The plugin use a 4 stage pipeline: trigger -> sources -> fuzzy -> render
 [@redxtech](https://github.com/redxtech) Help with design and testing
 
 [@aaditya-sahay](https://github.com/aaditya-sahay) Help with rust, design and testing
+
+[@stefanboca](https://github.com/stefanboca) Author of [blink.compat](https://github.com/saghen/blink.compat)
 
 [@scottmckendry](https://github.com/scottmckendry) Actively contributing to the project
 

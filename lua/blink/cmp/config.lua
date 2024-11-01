@@ -44,8 +44,9 @@
 --- @field keyword_regex? string
 --- @field exclude_from_prefix_regex? string
 --- @field blocked_trigger_characters? string[]
+--- @field show_on_accept_on_trigger_character? boolean When true, will show the completion window when the cursor comes after a trigger character after accepting an item
 --- @field show_on_insert_on_trigger_character? boolean When true, will show the completion window when the cursor comes after a trigger character when entering insert mode
---- @field show_on_insert_blocked_trigger_characters? string[] List of additional trigger characters that won't trigger the completion window when the cursor comes after a trigger character when entering insert mode
+--- @field show_on_x_blocked_trigger_characters? string[] List of additional trigger characters that won't trigger the completion window when the cursor comes after a trigger character when entering insert mode/accepting an item
 --- @field show_in_snippet? boolean When false, will not show the completion window when in a snippet
 ---
 --- @class blink.cmp.SignatureHelpTriggerConfig
@@ -85,7 +86,8 @@
 
 --- @class blink.cmp.PrebuiltBinariesConfig
 --- @field download? boolean
---- @field forceVersion? string | nil
+--- @field force_version? string | nil
+--- @field force_system_triple? string | nil
 
 --- @class blink.cmp.FuzzyConfig
 --- @field use_typo_resistance? boolean
@@ -93,7 +95,7 @@
 --- @field use_proximity? boolean
 --- @field max_items? number
 --- @field sorts? ("label" | "kind" | "score")[]
---- @field prebuiltBinaries? blink.cmp.PrebuiltBinariesConfig
+--- @field prebuilt_binaries? blink.cmp.PrebuiltBinariesConfig
 
 --- @class blink.cmp.WindowConfig
 --- @field autocomplete? blink.cmp.AutocompleteConfig
@@ -253,10 +255,12 @@ local config = {
       -- however, some LSPs (*cough* tsserver *cough*) return characters that would essentially
       -- always show the window. We block these by default
       blocked_trigger_characters = { ' ', '\n', '\t' },
+      -- when true, will show the completion window when the cursor comes after a trigger character after accepting an item
+      show_on_accept_on_trigger_character = true,
       -- when true, will show the completion window when the cursor comes after a trigger character when entering insert mode
       show_on_insert_on_trigger_character = true,
-      -- list of additional trigger characters that won't trigger the completion window when the cursor comes after a trigger character when entering insert mode
-      show_on_insert_blocked_trigger_characters = { "'", '"' },
+      -- list of additional trigger characters that won't trigger the completion window when the cursor comes after a trigger character when entering insert mode/accepting an item
+      show_on_x_blocked_trigger_characters = { "'", '"', '(' },
       -- when false, will not show the completion window when in a snippet
       show_in_snippet = false,
     },
@@ -282,7 +286,7 @@ local config = {
     -- controls which sorts to use and in which order, these three are currently the only allowed options
     sorts = { 'label', 'kind', 'score' },
 
-    prebuiltBinaries = {
+    prebuilt_binaries = {
       -- Whether or not to automatically download a prebuilt binary from github. If this is set to `false`
       -- you will need to manually build the fuzzy binary dependencies by running `cargo build --release`
       download = true,
@@ -290,7 +294,12 @@ local config = {
       -- then the downloader will attempt to infer the version from the checked out git tag (if any).
       --
       -- Beware that if the FFI ABI changes while tracking main then this may result in blink breaking.
-      forceVersion = nil,
+      force_version = nil,
+      -- When downloading a prebuilt binary, force the downloader to use this system triple. If this is unset
+      -- then the downloader will attempt to infer the system triple from `jit.os` and `jit.arch`.
+      --
+      -- Beware that if the FFI ABI changes while tracking main then this may result in blink breaking.
+      force_system_triple = nil,
     },
   },
 
