@@ -50,8 +50,8 @@
     -- 'super-tab' for mappings similar to vscode (tab to accept, arrow keys to navigate)
     -- 'enter' for mappings similar to 'super-tab' but with 'enter' to accept
     -- see the "default configuration" section below for full documentation on how to define
-    -- your own keymap. when defining your own, no keybinds will be assigned automatically.
-    keymap = 'default',
+    -- your own keymap.
+    keymap = { preset = 'default' },
 
     highlight = {
       -- sets the fallback highlight groups to nvim-cmp's highlight groups
@@ -61,7 +61,7 @@
     },
     -- set to 'mono' for 'Nerd Font Mono' or 'normal' for 'Nerd Font'
     -- adjusts spacing to ensure icons are aligned
-    nerd_font_variant = 'normal',
+    nerd_font_variant = 'mono',
 
     -- experimental auto-brackets support
     -- accept = { auto_brackets = { enabled = true } }
@@ -89,12 +89,6 @@
     end
   end
 }
-```
-
-For LazyVim/distro users, you can disable nvim-cmp via:
-
-```lua
-{ 'hrsh7th/nvim-cmp', enabled = false }
 ```
 
 <details>
@@ -329,7 +323,7 @@ MiniDeps.add({
 
   sources = {
     -- list of enabled providers
-    completion = { 
+    completion = {
       enabled_providers = { 'lsp', 'path', 'snippets', 'buffer' },
     }
 
@@ -390,6 +384,7 @@ MiniDeps.add({
       min_width = 15,
       max_height = 10,
       border = 'none',
+      winblend = 0,
       winhighlight = 'Normal:BlinkCmpMenu,FloatBorder:BlinkCmpMenuBorder,CursorLine:BlinkCmpMenuSelection,Search:None',
       -- keep the cursor X lines away from the top/bottom of the window
       scrolloff = 2,
@@ -422,6 +417,7 @@ MiniDeps.add({
       max_width = 60,
       max_height = 20,
       border = 'padded',
+      winblend = 0,
       winhighlight = 'Normal:BlinkCmpDoc,FloatBorder:BlinkCmpDocBorder,CursorLine:BlinkCmpDocCursorLine,Search:None',
       -- which directions to show the documentation window,
       -- for each of the possible autocomplete window directions,
@@ -440,6 +436,7 @@ MiniDeps.add({
       max_width = 100,
       max_height = 10,
       border = 'padded',
+      winblend = 0,
       winhighlight = 'Normal:BlinkCmpSignatureHelp,FloatBorder:BlinkCmpSignatureHelpBorder',
 
       -- which directions to show the window,
@@ -461,7 +458,7 @@ MiniDeps.add({
 
   -- set to 'mono' for 'Nerd Font Mono' or 'normal' for 'Nerd Font'
   -- adjusts spacing to ensure icons are aligned
-  nerd_font_variant = 'normal',
+  nerd_font_variant = 'mono',
 
   -- don't show completions or signature help for these filetypes. Keymaps are also disabled.
   blocked_filetypes = {},

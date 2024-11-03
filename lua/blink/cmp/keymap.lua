@@ -102,9 +102,7 @@ function keymap.setup(opts)
   end
 
   -- handle presets
-  if type(opts) == 'string' then
-    mappings = keymap.get_preset_keymap(opts)
-  end
+  if type(opts) == 'string' then mappings = keymap.get_preset_keymap(opts) end
 
   -- we set on the buffer directly to avoid buffer-local keymaps (such as from autopairs)
   -- from overriding our mappings. We also use InsertEnter to avoid conflicts with keymaps
@@ -115,24 +113,27 @@ function keymap.setup(opts)
       keymap.apply_keymap_to_current_buffer(mappings)
     end,
   })
+
+  -- This is not called when the plugin loads since it first checks if the binary is
+  -- installed. As a result, when lazy-loaded on InsertEnter, the event may be missed
+  if vim.api.nvim_get_mode().mode == 'i' and not utils.is_blocked_buffer() then
+    keymap.apply_keymap_to_current_buffer(mappings)
+  end
 end
 
 --- Gets the preset keymap for the given preset name
 --- @param preset_name string
---- @return table
+--- @return table<string, blink.cmp.KeymapCommand[]>
 function keymap.get_preset_keymap(preset_name)
-  local mappings
   if preset_name == 'default' then
-    mappings = default_keymap
+    return default_keymap
   elseif preset_name == 'super-tab' then
-    mappings = super_tab_keymap
+    return super_tab_keymap
   elseif preset_name == 'enter' then
-    mappings = enter_keymap
-  else
-    error('Invalid blink.cmp keymap preset: ' .. preset_name)
+    return enter_keymap
   end
 
-  return mappings
+  error('Invalid blink.cmp keymap preset: ' .. preset_name)
 end
 
 --- Applies the keymaps to the current buffer

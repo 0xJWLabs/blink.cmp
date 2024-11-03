@@ -49,6 +49,7 @@ function win.new(config)
     border = config.border or 'none',
     wrap = config.wrap or false,
     filetype = config.filetype or 'cmp_menu',
+    winblend = config.winblend or 0,
     winhighlight = config.winhighlight or 'Normal:NormalFloat,FloatBorder:NormalFloat',
     scrolloff = config.scrolloff or 0,
   }
@@ -90,6 +91,7 @@ function win:open()
     zindex = 1001,
     border = self.config.border == 'padded' and { ' ', '', '', ' ', '', '', ' ', ' ' } or self.config.border,
   })
+  vim.api.nvim_set_option_value('winblend', self.config.winblend, { win = self.id })
   vim.api.nvim_set_option_value('winhighlight', self.config.winhighlight, { win = self.id })
   vim.api.nvim_set_option_value('wrap', self.config.wrap, { win = self.id })
   vim.api.nvim_set_option_value('foldenable', false, { win = self.id })
@@ -225,7 +227,7 @@ function win:get_vertical_direction_and_height(direction_priority)
   local direction_priority_by_space = vim.fn.sort(vim.deepcopy(direction_priority), function(a, b)
     local distance_a = math.min(max_height, get_distance(a))
     local distance_b = math.min(max_height, get_distance(b))
-    return distance_a < distance_b and -1 or distance_a > distance_b and 1 or 0
+    return (distance_a < distance_b) and 1 or (distance_a > distance_b) and -1 or 0
   end)
 
   local direction = direction_priority_by_space[1]
@@ -280,7 +282,7 @@ function win:get_direction_with_window_constraints(anchor_win, direction_priorit
     local constraints_b = direction_constraints[b]
     local distance_a = math.min(max_height, constraints_a.vertical, constraints_a.horizontal)
     local distance_b = math.min(max_height, constraints_b.vertical, constraints_b.horizontal)
-    return distance_a < distance_b and -1 or distance_a > distance_b and 1 or 0
+    return distance_a < distance_b and 1 or distance_a > distance_b and -1 or 0
   end)
 
   local border_size = self:get_border_size()
